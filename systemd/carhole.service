@@ -1,0 +1,29 @@
+# /etc/systemd/system/carhole.service
+[Unit]
+Description=Carhole Flask App (Gunicorn)
+After=network.target
+ConditionPathExists=/dev/video0
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/carhole
+
+# Wait up to ~10s for the camera node to appear (helps on slow boots)
+ExecStartPre=/bin/bash -c 'for i in {1..10}; do [[ -e /dev/video0 ]] && exit 0; sleep 1; done; echo "/dev/video0 not found"; exit 1'
+
+# Gunicorn: 1 worker (owns camera), a few threads, no timeout for MJPEG streams
+ExecStart=/usr/bin/python3 -m gunicorn \
+  --bind 127.0.0.1:8081 \
+  --workers 1 \
+  --threads 3 \
+  --timeout 0 \
+  --access-logfile - \
+  --error-logfile - \
+  app:app
+
+Restart=always
+RestartSec=3
+Environment=FLASK_ENV=production
+
+[Install]
+WantedBy=multi-user.target
